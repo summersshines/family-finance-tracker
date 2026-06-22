@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Finance Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #efefec;
+    --text: #1a1a18; --text2: #6b6b67; --text3: #9b9b96;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --green: #3B6D11; --red: #A32D2D; --blue: #185FA5; --amber: #854F0B;
+    --green-bg: #639922; --red-bg: #E24B4A; --blue-mid: #378ADD;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a28; --bg3: #333330;
+      --text: #f0f0ec; --text2: #a0a09a; --text3: #6a6a66;
+      --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.22);
+      --green: #97C459; --red: #F09595; --blue: #85B7EB; --amber: #EF9F27;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; padding: 1.5rem 1rem; }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab { padding: 8px 16px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text2); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .tab.active { background: var(--bg2); color: var(--text); font-weight: 500; border-color: var(--border2); }
+  .tab:hover:not(.active) { background: var(--bg2); }
+  .section { display: none; }
+  .section.active { display: block; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metric { background: var(--bg2); border-radius: var(--radius); padding: 1rem; }
+  .metric-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 500; }
+  .metric-value.green { color: var(--green); }
+  .metric-value.red { color: var(--red); }
+  .metric-value.blue { color: var(--blue); }
+  .metric-value.amber { color: var(--amber); }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .card-title { font-size: 15px; font-weight: 500; }
+  .add-btn { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text2); cursor: pointer; font-size: 13px; }
+  .add-btn:hover { background: var(--bg2); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 6px 8px; color: var(--text2); font-weight: 400; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+  td { padding: 8px 8px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .editable { background: transparent; border: none; width: 100%; color: var(--text); font-size: 13px; font-family: inherit; }
+  .editable:focus { outline: 1px solid var(--blue-mid); border-radius: 4px; padding: 2px 4px; }
+  .amount-input { text-align: right; max-width: 100px; }
+  .delete-btn { background: none; border: none; cursor: pointer; color: var(--text3); padding: 2px 6px; border-radius: 4px; font-size: 16px; line-height: 1; }
+  .delete-btn:hover { color: var(--red); background: #FCEBEB; }
+  .section-total { display: flex; justify-content: space-between; align-items: center; padding: 10px 8px; font-weight: 500; border-top: 1px solid var(--border2); margin-top: 4px; font-size: 14px; }
+  .progress-bar { height: 10px; background: var(--bg2); border-radius: 99px; overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; border-radius: 99px; }
+  .net-bar { display: flex; border-radius: var(--radius); overflow: hidden; height: 12px; margin: 8px 0 6px; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text2); margin-bottom: 1rem; }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+  .disclaimer { font-size: 11px; color: var(--text3); margin-top: 12px; }
+  .proj-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 4px; }
+  .proj-card { background: var(--bg2); border-radius: var(--radius); padding: 12px; }
+  select.editable { cursor: pointer; }
+  @media (max-width: 560px) {
+    .tabs { gap: 4px; }
+    .tab { font-size: 12px; padding: 6px 10px; }
+    table { font-size: 12px; }
+    .amount-input { max-width: 72px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Family Finance Tracker</h1>
+  <p class="subtitle">Click any field to edit — all figures update automatically</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview')">&#9783; Overview</button>
+    <button class="tab" onclick="showTab('income')">&#8593; Income</button>
+    <button class="tab" onclick="showTab('expenses')">&#8595; Expenses</button>
+    <button class="tab" onclick="showTab('savings')">&#9670; Savings</button>
+    <button class="tab" onclick="showTab('super')">&#9651; Super</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="section active" id="tab-overview">
+    <div class="summary-grid" id="overview-metrics"></div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Monthly cashflow</span></div>
+      <div id="net-bar-wrap"></div>
+      <div id="expense-breakdown"></div>
+    </div>
+  </div>
+
+  <!-- INCOME -->
+  <div class="section" id="tab-income">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Income sources</span>
+        <button class="add-btn" onclick="addRow('income')">+ Add income</button>
+      </div>
+      <table>
+        <thead><tr><th>Source</th><th>Frequency</th><th style="text-align:right">Amount ($)</th><th style="text-align:right">Monthly equiv.</th><th></th></tr></thead>
+        <tbody id="income-rows"></tbody>
+      </table>
+      <div class="section-total"><span>Total monthly income</span><span id="income-total" style="color:var(--green)">$0</span></div>
+    </div>
+  </div>
+
+  <!-- EXPENSES -->
+  <div class="section" id="tab-expenses">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Expense items</span>
+        <button class="add-btn" onclick="addRow('expense')">+ Add expense</button>
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th>Category</th><th>Frequency</th><th style="text-align:right">Amount ($)</th><th style="text-align:right">Monthly equiv.</th><th></th></tr></thead>
+        <tbody id="expense-rows"></tbody>
+      </table>
+      <div class="section-total"><span>Total monthly expenses</span><span id="expense-total" style="color:var(--red)">$0</span></div>
+    </div>
+  </div>
+
+  <!-- SAVINGS -->
+  <div class="section" id="tab-savings">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Savings goals</span>
+        <button class="add-btn" onclick="addSavingsGoal()">+ Add goal</button>
+      </div>
+      <div id="savings-goals"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Savings accounts</span>
+        <button class="add-btn" onclick="addRow('savings')">+ Add account</button>
+      </div>
+      <table>
+        <thead><tr><th>Account</th><th>Institution</th><th style="text-align:right">Balance ($)</th><th style="text-align:right">Monthly deposit ($)</th><th></th></tr></thead>
+        <tbody id="savings-rows"></tbody>
+      </table>
+      <div class="section-total"><span>Total savings balance</span><span id="savings-total" style="color:var(--blue)">$0</span></div>
+    </div>
+  </div>
+
+  <!-- SUPER -->
+  <div class="section" id="tab-super">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Superannuation accounts</span>
+        <button class="add-btn" onclick="addRow('super')">+ Add member</button>
+      </div>
+      <table>
+        <thead><tr><th>Member</th><th>Fund</th><th>Investment option</th><th style="text-align:right">Balance ($)</th><th style="text-align:right">Employer %</th><th style="text-align:right">Extra/mo ($)</th><th></th></tr></thead>
+        <tbody id="super-rows"></tbody>
+      </table>
+      <div class="section-total"><span>Total super balance</span><span id="super-total" style="color:var(--amber)">$0</span></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Super projection</span></div>
+      <div id="super-projection"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FREQ = {Weekly:52,Fortnightly:26,Monthly:12,Quarterly:4,Annually:1};
+const CATS = ['Housing','Food','Transport','Health','Education','Lifestyle','Entertainment','Insurance','Other'];
+const OPTS = ['Balanced','Growth','High Growth','Conservative','Indexed Balanced','MySuper'];
+
+let income = [
+  {id:1,source:'Salary — partner 1',freq:'Monthly',amount:8500},
+  {id:2,source:'Salary — partner 2',freq:'Monthly',amount:5500},
+  {id:3,source:'Family Tax Benefit',freq:'Fortnightly',amount:180},
+];
+let expenses = [
+  {id:1,item:'Mortgage / rent',cat:'Housing',freq:'Monthly',amount:2800},
+  {id:2,item:'Groceries',cat:'Food',freq:'Weekly',amount:280},
+  {id:3,item:'Utilities',cat:'Housing',freq:'Monthly',amount:350},
+  {id:4,item:'Private health insurance',cat:'Health',freq:'Monthly',amount:320},
+  {id:5,item:'Car loan',cat:'Transport',freq:'Monthly',amount:450},
+  {id:6,item:'Petrol',cat:'Transport',freq:'Weekly',amount:80},
+  {id:7,item:'Childcare / school fees',cat:'Education',freq:'Monthly',amount:600},
+  {id:8,item:'Subscriptions',cat:'Lifestyle',freq:'Monthly',amount:65},
+];
+let savings = [
+  {id:1,account:'Emergency fund',institution:'ING',balance:12000,monthly:500},
+  {id:2,account:'Holiday fund',institution:'UBank',balance:3500,monthly:200},
+];
+let savingsGoals = [
+  {id:1,name:'Holiday to Japan',target:8000,saved:3500},
+  {id:2,name:'New car deposit',target:15000,saved:5200},
+];
+let superRows = [
+  {id:1,member:'Partner 1',fund:'Australian Super',option:'Balanced',balance:95000,empPct:11.5,extra:200},
+  {id:2,member:'Partner 2',fund:'Hostplus',option:'Indexed Balanced',balance:62000,empPct:11.5,extra:0},
+];
+let nextId = 100;
+
+function toMonthly(freq,amt){ return (amt * FREQ[freq]) / 12; }
+function fmt(n){ return '$' + Math.round(n).toLocaleString('en-AU'); }
+function totalIncome(){ return income.reduce((s,r)=>s+toMonthly(r.freq,r.amount),0); }
+function totalExpenses(){ return expenses.reduce((s,r)=>s+toMonthly(r.freq,r.amount),0); }
+function totalSavings(){ return savings.reduce((s,r)=>s+r.balance,0); }
+function totalSuper(){ return superRows.reduce((s,r)=>s+r.balance,0); }
+
+function renderAll(){ renderIncome(); renderExpenses(); renderSavings(); renderSuper(); renderOverview(); }
+
+function renderIncome(){
+  document.getElementById('income-rows').innerHTML = income.map(r=>`<tr>
+    <td><input class="editable" value="${esc(r.source)}" oninput="income.find(x=>x.id==${r.id}).source=this.value;renderOverview()"></td>
+    <td><select class="editable" onchange="income.find(x=>x.id==${r.id}).freq=this.value;renderAll()">${Object.keys(FREQ).map(f=>`<option${f===r.freq?' selected':''}>${f}</option>`).join('')}</select></td>
+    <td><input class="editable amount-input" type="number" min="0" value="${r.amount}" oninput="income.find(x=>x.id==${r.id}).amount=+this.value;renderAll()"></td>
+    <td style="text-align:right;color:var(--green);font-weight:500">${fmt(toMonthly(r.freq,r.amount))}</td>
+    <td><button class="delete-btn" onclick="income=income.filter(x=>x.id!=${r.id});renderAll()" title="Delete">&#10005;</button></td>
+  </tr>`).join('');
+  document.getElementById('income-total').textContent = fmt(totalIncome());
+}
+
+function renderExpenses(){
+  document.getElementById('expense-rows').innerHTML = expenses.map(r=>`<tr>
+    <td><input class="editable" value="${esc(r.item)}" oninput="expenses.find(x=>x.id==${r.id}).item=this.value"></td>
+    <td><select class="editable" onchange="expenses.find(x=>x.id==${r.id}).cat=this.value;renderOverview()">${CATS.map(c=>`<option${c===r.cat?' selected':''}>${c}</option>`).join('')}</select></td>
+    <td><select class="editable" onchange="expenses.find(x=>x.id==${r.id}).freq=this.value;renderAll()">${Object.keys(FREQ).map(f=>`<option${f===r.freq?' selected':''}>${f}</option>`).join('')}</select></td>
+    <td><input class="editable amount-input" type="number" min="0" value="${r.amount}" oninput="expenses.find(x=>x.id==${r.id}).amount=+this.value;renderAll()"></td>
+    <td style="text-align:right;color:var(--red);font-weight:500">${fmt(toMonthly(r.freq,r.amount))}</td>
+    <td><button class="delete-btn" onclick="expenses=expenses.filter(x=>x.id!=${r.id});renderAll()" title="Delete">&#10005;</button></td>
+  </tr>`).join('');
+  document.getElementById('expense-total').textContent = fmt(totalExpenses());
+}
+
+function renderSavings(){
+  document.getElementById('savings-rows').innerHTML = savings.map(r=>`<tr>
+    <td><input class="editable" value="${esc(r.account)}" oninput="savings.find(x=>x.id==${r.id}).account=this.value"></td>
+    <td><input class="editable" value="${esc(r.institution)}" oninput="savings.find(x=>x.id==${r.id}).institution=this.value"></td>
+    <td><input class="editable amount-input" type="number" min="0" value="${r.balance}" oninput="savings.find(x=>x.id==${r.id}).balance=+this.value;renderAll()"></td>
+    <td><input class="editable amount-input" type="number" min="0" value="${r.monthly}" oninput="savings.find(x=>x.id==${r.id}).monthly=+this.value;renderOverview()"></td>
+    <td><button class="delete-btn" onclick="savings=savings.filter(x=>x.id!=${r.id});renderAll()" title="Delete">&#10005;</button></td>
+  </tr>`).join('');
+  document.getElementById('savings-total').textContent = fmt(totalSavings());
+
+  document.getElementById('savings-goals').innerHTML = savingsGoals.map(g=>{
+    const pct = g.target > 0 ? Math.min(100, Math.round((g.saved/g.target)*100)) : 0;
+    return `<div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <input class="editable" style="font-weight:500;font-size:14px;flex:1" value="${esc(g.name)}" oninput="savingsGoals.find(x=>x.id==${g.id}).name=this.value">
+        <button class="delete-btn" onclick="savingsGoals=savingsGoals.filter(x=>x.id!=${g.id});renderSavings()" title="Delete">&#10005;</button>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;font-size:12px;color:var(--text2);flex-wrap:wrap">
+        <span>Saved: $<input type="number" class="editable" style="width:80px;display:inline" min="0" value="${g.saved}" oninput="savingsGoals.find(x=>x.id==${g.id}).saved=+this.value;renderSavings()"></span>
+        <span>Target: $<input type="number" class="editable" style="width:90px;display:inline" min="0" value="${g.target}" oninput="savingsGoals.find(x=>x.id==${g.id}).target=+this.value;renderSavings()"></span>
+        <span style="color:var(--blue);font-weight:500">${pct}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:#378ADD"></div></div>
+    </div>`;
+  }).join('') + (savingsGoals.length === 0 ? '<p style="color:var(--text3);font-size:13px;padding:8px 0">No goals yet — click + Add goal</p>' : '');
+}
+
+function renderSuper(){
+  document.getElementById('super-rows').innerHTML = superRows.map(r=>`<tr>
+    <td><input class="editable" value="${esc(r.member)}" oninput="superRows.find(x=>x.id==${r.id}).member=this.value"></td>
+    <td><input class="editable" value="${esc(r.fund)}" oninput="superRows.find(x=>x.id==${r.id}).fund=this.value"></td>
+    <td><select class="editable" onchange="superRows.find(x=>x.id==${r.id}).option=this.value">${OPTS.map(o=>`<option${o===r.option?' selected':''}>${o}</option>`).join('')}</select></td>
+    <td><input class="editable amount-input" type="number" min="0" value="${r.balance}" oninput="superRows.find(x=>x.id==${r.id}).balance=+this.value;renderAll()"></td>
+    <td><input class="editable amount-input" type="number" min="0" step="0.1" value="${r.empPct}" oninput="superRows.find(x=>x.id==${r.id}).empPct=+this.value;renderSuper()"></td>
+    <td><input class="editable amount-input" type="number" min="0" value="${r.extra}" oninput="superRows.find(x=>x.id==${r.id}).extra=+this.value;renderSuper()"></td>
+    <td><button class="delete-btn" onclick="superRows=superRows.filter(x=>x.id!=${r.id});renderAll()" title="Delete">&#10005;</button></td>
+  </tr>`).join('');
+  document.getElementById('super-total').textContent = fmt(totalSuper());
+
+  const annualSalary = totalIncome() * 12 / Math.max(income.length, 1);
+  let projHTML = '<div class="proj-grid">';
+  superRows.forEach(r => {
+    const annualEmprContrib = (r.empPct / 100) * annualSalary;
+    const annualExtra = r.extra * 12;
+    const totalAnnual = annualEmprContrib + annualExtra;
+    const p10 = Math.round(r.balance * Math.pow(1.07,10) + totalAnnual * ((Math.pow(1.07,10)-1)/0.07));
+    const p30 = Math.round(r.balance * Math.pow(1.07,30) + totalAnnual * ((Math.pow(1.07,30)-1)/0.07));
+    projHTML += `<div class="proj-card">
+      <div style="font-weight:500;font-size:13px;margin-bottom:8px">${esc(r.member)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Current balance: <span style="color:var(--amber);font-weight:500">${fmt(r.balance)}</span></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">In 10 years: <span style="font-weight:500">${fmt(p10)}</span></div>
+      <div style="font-size:12px;color:var(--text2)">In 30 years: <span style="font-weight:500">${fmt(p30)}</span></div>
+    </div>`;
+  });
+  projHTML += '</div><p class="disclaimer">Projections assume 7% annual return and current contribution rates. For illustration only — not financial advice. Consider speaking with a licensed financial adviser.</p>';
+  document.getElementById('super-projection').innerHTML = projHTML;
+}
+
+function renderOverview(){
+  const inc = totalIncome(), exp = totalExpenses(), net = inc - exp;
+  const savDep = savings.reduce((s,r)=>s+r.monthly,0);
+  document.getElementById('overview-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Monthly income</div><div class="metric-value green">${fmt(inc)}</div></div>
+    <div class="metric"><div class="metric-label">Monthly expenses</div><div class="metric-value red">${fmt(exp)}</div></div>
+    <div class="metric"><div class="metric-label">Monthly surplus</div><div class="metric-value ${net>=0?'blue':'red'}">${fmt(net)}</div></div>
+    <div class="metric"><div class="metric-label">Monthly savings</div><div class="metric-value amber">${fmt(savDep)}</div></div>
+    <div class="metric"><div class="metric-label">Total savings</div><div class="metric-value blue">${fmt(totalSavings())}</div></div>
+    <div class="metric"><div class="metric-label">Total super</div><div class="metric-value amber">${fmt(totalSuper())}</div></div>
+  `;
+
+  const total = inc + exp || 1;
+  const incPct = Math.round((inc/total)*100);
+  document.getElementById('net-bar-wrap').innerHTML = `
+    <div class="net-bar">
+      <div style="width:${incPct}%;background:#639922"></div>
+      <div style="width:${100-incPct}%;background:#E24B4A"></div>
+    </div>
+    <div class="legend" style="margin-bottom:1rem">
+      <span><span class="legend-dot" style="background:#639922"></span>Income ${incPct}%</span>
+      <span><span class="legend-dot" style="background:#E24B4A"></span>Expenses ${100-incPct}%</span>
+    </div>`;
+
+  const cats = {};
+  expenses.forEach(r=>{ const m=toMonthly(r.freq,r.amount); cats[r.cat]=(cats[r.cat]||0)+m; });
+  const sorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const maxVal = sorted[0]?.[1] || 1;
+  document.getElementById('expense-breakdown').innerHTML =
+    '<div style="font-size:13px;font-weight:500;margin-bottom:10px;color:var(--text2)">Expenses by category</div>' +
+    sorted.map(([cat,val])=>`<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${cat}</span><span style="color:var(--text2)">${fmt(val)}/mo</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.round((val/maxVal)*100)}%;background:#E24B4A"></div></div>
+    </div>`).join('');
+}
+
+function addRow(type){
+  nextId++;
+  if(type==='income') income.push({id:nextId,source:'New income',freq:'Monthly',amount:0});
+  if(type==='expense') expenses.push({id:nextId,item:'New expense',cat:'Other',freq:'Monthly',amount:0});
+  if(type==='savings') savings.push({id:nextId,account:'New account',institution:'',balance:0,monthly:0});
+  if(type==='super') superRows.push({id:nextId,member:'New member',fund:'',option:'Balanced',balance:95000,empPct:11.5,extra:0});
+  renderAll();
+  const tabMap = {income:'income',expense:'expenses',savings:'savings',super:'super'};
+  showTab(tabMap[type]);
+}
+
+function addSavingsGoal(){
+  nextId++;
+  savingsGoals.push({id:nextId,name:'New goal',target:10000,saved:0});
+  renderSavings();
+  showTab('savings');
+}
+
+function showTab(name){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const idx = ['overview','income','expenses','savings','super'].indexOf(name);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+renderAll();
+</script>
+</body>
+</html>
